@@ -18,6 +18,7 @@ if test "x$1" = "x"; then
 fi
 
 RET=0
+BAD_CMDS="sed" # Extend with regular expressions e.g. "sed|awk"
 PREV_BRANCH=$(git name-rev --name-only HEAD)
 PREV_HEAD=$(git rev-parse HEAD)
 for commit in $(git rev-list --reverse $1); do
@@ -31,7 +32,15 @@ for commit in $(git rev-list --reverse $1); do
         else
             echo "Running script for: $commit"
             echo "$SCRIPT"
-            (eval "$SCRIPT")
+            if ! (eval "$SCRIPT"); then
+	    	echo "Script failed (non-zero exit code)"
+		echo "Please ensure that commands are portable."
+		echo "$SCRIPT" | grep "$BAD_CMDS" | # Extend with grep -E
+		while IFS= read -r line;
+		do
+		    echo "$line may not portable."
+		done
+	    fi
             git --no-pager diff --exit-code $commit && echo "OK" || (echo "Failed"; false) || RET=1
         fi
         git reset --quiet --hard HEAD
